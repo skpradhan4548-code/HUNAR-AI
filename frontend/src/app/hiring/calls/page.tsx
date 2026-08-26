@@ -102,12 +102,21 @@ export default function CallsPage() {
                   </td>
                   <td className="px-6 py-4 text-slate-500 font-mono text-xs">{call.mobile_number}</td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_COLORS[call.lifecycle_status] || "bg-gray-100 text-gray-600"}`}>
-                      {call.lifecycle_status === "COMPLETED" && <CheckCircle className="w-3 h-3" />}
-                      {call.lifecycle_status === "IN_PROGRESS" && <Clock className="w-3 h-3" />}
-                      {["NOT_CONNECTED", "FAILED"].includes(call.lifecycle_status) && <AlertCircle className="w-3 h-3" />}
-                      {call.lifecycle_status}
-                    </span>
+                    <div className="flex flex-col gap-1 items-start">
+                      <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${
+                        call.status === "SCHEDULED" ? "bg-amber-50 text-amber-700 border border-amber-200" :
+                        STATUS_COLORS[call.lifecycle_status] || "bg-gray-100 text-gray-600"
+                      }`}>
+                        {call.lifecycle_status === "COMPLETED" && <CheckCircle className="w-3 h-3" />}
+                        {call.status === "SCHEDULED" && <Clock className="w-3 h-3 text-amber-600" />}
+                        {call.lifecycle_status === "IN_PROGRESS" && call.status !== "SCHEDULED" && <Clock className="w-3 h-3" />}
+                        {["NOT_CONNECTED", "FAILED"].includes(call.lifecycle_status) && <AlertCircle className="w-3 h-3" />}
+                        {call.status === "SCHEDULED" ? "SCHEDULED (8 AM - 9 PM)" : call.lifecycle_status}
+                      </span>
+                      {call.status === "SCHEDULED" && (
+                        <span className="text-[10px] text-amber-600">Queued for allowed calling hours (TRAI compliance)</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 text-slate-500">{formatDuration(call.duration_seconds)}</td>
                   <td className="px-6 py-4 text-slate-500 text-xs">{formatDate(call.created_at)}</td>
