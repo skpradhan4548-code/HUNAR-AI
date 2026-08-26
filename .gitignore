@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+.next/
+__pycache__/
+*.pyc
+venv/
+env/
+.env/
+
+# Environment secrets — NEVER commit these
+.env
+.env.local
+.env.*.local
+backend/.env
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Next.js
+frontend/.next/
+frontend/node_modules/

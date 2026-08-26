@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: hunar-ai-backend
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: HUNAR_API_KEY
+        sync: false
+      - key: PDL_API_KEY
+        sync: false
