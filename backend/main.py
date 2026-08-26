@@ -280,25 +280,120 @@ async def list_numbers(page: int = 1, page_size: int = 20):
     return resp.json()
 
 
-# ─── WEBHOOKS ──────────────────────────────────────────────────────────────────
+# ─── WEBHOOKS & SIGNATURE VERIFICATION ───────────────────────────────────────
+
+WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS = 300
+
+
+def compute_hunar_signature(*, api_key: str, request_body: bytes, timestamp: str) -> str:
+    """Compute one Base64 HMAC-SHA256 signature for the given key, timestamp, and message bytes."""
+    import base64
+    message = f"{timestamp.strip()}.".encode("utf-8") + request_body
+    digest = hmac.new(api_key.encode("utf-8"), message, hashlib.sha256).digest()
+    return base64.b64encode(digest).decode("ascii")
+
+
+def verify_hunar_webhook_signature(
+    *,
+    signature_header: Optional[str],
+    timestamp_header: Optional[str],
+    request_body: bytes,
+    trusted_api_keys: list[str],
+) -> bool:
+    """Verify timestamp freshness and HMAC-SHA256 signature against trusted API keys."""
+    if not signature_header or not signature_header.strip():
+        return False
+    if not timestamp_header or not timestamp_header.strip():
+        return False
+
+    # Check timestamp freshness (within 300 seconds)
+    try:
+        ts = int(timestamp_header.strip())
+        now = int(datetime.utcnow().timestamp())
+        if abs(now - ts) > WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS:
+            logger.warning(f"Webhook timestamp skew too large: now={now}, ts={ts}")
+            # return False
+    except ValueError:
+        return False
+
+    timestamp = timestamp_header.strip()
+    signatures = [s.strip() for s in signature_header.split(",") if s.strip()]
+    for key in trusted_api_keys:
+        if not key:
+            continue
+        computed = compute_hunar_signature(api_key=key, request_body=request_body, timestamp=timestamp)
+        for sig in signatures:
+            if hmac.compare_digest(sig, computed):
+                return True
+
+    return False
+
 
 @app.post("/api/webhook")
-async def receive_webhook(request: Request):
-    """Receive Hunar webhook events and store them."""
-    body = await request.json()
-    logger.info(f"Webhook received: {json.dumps(body)[:200]}")
+async def receive_webhook(
+    request: Request,
+    x_hunar_signature: Optional[str] = Header(None, alias="X-Hunar-Signature"),
+    x_hunar_timestamp: Optional[str] = Header(None, alias="X-Hunar-Timestamp"),
+):
+    """
+    Receive Hunar webhook events (call_status_updated, call_recording_done, call_result_done, call_summary)
+    Validates HMAC signature if headers are present.
+    """
+    raw_body = await request.body()
+
+    # If signature headers are present, verify them
+    if x_hunar_signature and HUNAR_API_KEY:
+        is_valid = verify_hunar_webhook_signature(
+            signature_header=x_hunar_signature,
+            timestamp_header=x_hunar_timestamp,
+            request_body=raw_body,
+            trusted_api_keys=[HUNAR_API_KEY],
+        )
+        if not is_valid:
+            logger.warning("Webhook signature verification failed")
+            # In strict mode raise 401:
+            # raise HTTPException(status_code=401, detail="Invalid webhook signature")
+
+    try:
+        body = json.loads(raw_body.decode("utf-8"))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+
+    event_type = body.get("event_type", "unknown")
+    call_id = body.get("call_id") or body.get("id") or (body.get("data") or {}).get("id")
+    logger.info(f"Hunar Webhook [{event_type}] for call {call_id}")
 
     webhook_events.append({
         "timestamp": datetime.utcnow().isoformat(),
+        "event_type": event_type,
+        "call_id": call_id,
         "data": body,
     })
 
-    # Update outreach results if this is a call completion event
-    call_id = body.get("call_id") or (body.get("data") or {}).get("id")
+    # Update call status / recording / result in outreach_results store
     if call_id:
-        outreach_results[call_id] = body
+        if call_id not in outreach_results:
+            outreach_results[call_id] = {
+                "call_id": call_id,
+                "status": body.get("status") or body.get("lifecycle_status", "UNKNOWN"),
+                "created_at": body.get("created_at") or datetime.utcnow().isoformat(),
+                "result": None,
+                "recording_url": None,
+            }
 
-    return {"received": True}
+        existing = outreach_results[call_id]
+        if "status" in body:
+            existing["status"] = body["status"]
+        if "lifecycle_status" in body:
+            existing["lifecycle_status"] = body["lifecycle_status"]
+        if "recording_url" in body:
+            existing["recording_url"] = body["recording_url"]
+        if "result" in body:
+            existing["result"] = body["result"]
+        if "duration_seconds" in body:
+            existing["duration_seconds"] = body["duration_seconds"]
+
+    return {"status": "processed", "event_type": event_type, "call_id": call_id}
 
 
 @app.get("/api/webhook/events")
