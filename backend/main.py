@@ -206,6 +206,12 @@ class RetryConfig(BaseModel):
     retry_interval_hours: int
 
 
+class GuardrailsConfig(BaseModel):
+    allowed_days: list[str]
+    earliest_call_time: str
+    last_call_time: str
+
+
 class CreateCallRequest(BaseModel):
     agent_id: str
     callee_name: str
@@ -213,6 +219,8 @@ class CreateCallRequest(BaseModel):
     custom_data: Optional[dict] = None
     from_phone_number: Optional[str] = None
     request_id: Optional[str] = None
+    timezone: Optional[str] = None
+    guardrails: Optional[GuardrailsConfig] = None
     callback_config: Optional[CallbackConfig] = None
     retry_config: Optional[RetryConfig] = None
 
@@ -629,18 +637,46 @@ class OutreachRequest(BaseModel):
 @app.post("/api/outreach")
 async def initiate_outreach(body: OutreachRequest):
     """Initiate a voice outreach call to a candidate."""
-    custom_data = {
-        "job_title": body.job_title or "the role",
-        "candidate_name": body.candidate.get("full_name", "Candidate"),
-        "current_company": body.candidate.get("job_company_name", ""),
-        "current_role": body.candidate.get("job_title", ""),
+    # First fetch the agent to know its custom_variables
+    custom_data: dict[str, str] = {}
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        agent_resp = await client.get(
+            f"{HUNAR_BASE_URL}/agents/{body.agent_id}/",
+            headers=get_hunar_headers(),
+        )
+        agent_data = agent_resp.json() if agent_resp.status_code == 200 else {}
+
+    # Map candidate fields to potential custom variable names
+    candidate_name = body.candidate.get("full_name", "Candidate")
+    job_title = body.job_title or body.candidate.get("job_title", "Software Engineer")
+    company = body.company_name or "our company"
+    location = body.candidate.get("location_name", "India")
+
+    var_map = {
+        "candidate_name": candidate_name,
+        "callee_name": candidate_name,
+        "job_title": job_title,
+        "job_role": job_title,
+        "role_title": job_title,
+        "company": company,
+        "company_name": company,
+        "location": location,
+        "role_location": location,
+        "current_company": body.candidate.get("job_company_name", company),
+        "current_role": body.candidate.get("job_title", job_title),
     }
-    if body.company_name:
-        custom_data["company"] = body.company_name
+
+    # Populate every variable the agent defines
+    for v in agent_data.get("custom_variables", []):
+        custom_data[v] = var_map.get(v, f"{v.replace('_', ' ').title()}")
+
+    # Ensure baseline fields exist
+    if not custom_data:
+        custom_data = {"job_role": job_title, "company": company, "location": location}
 
     call_payload: dict[str, Any] = {
         "agent_id": body.agent_id,
-        "callee_name": body.candidate.get("full_name", "Candidate"),
+        "callee_name": candidate_name,
         "mobile_number": body.mobile_number,
         "custom_data": custom_data,
         "request_id": f"outreach-{body.candidate.get('id', 'unknown')}-{int(datetime.utcnow().timestamp())}",
@@ -655,6 +691,7 @@ async def initiate_outreach(body: OutreachRequest):
             json=call_payload,
         )
     if resp.status_code != 200:
+        logger.error(f"Failed to create outreach call: {resp.status_code} - {resp.text}")
         raise HTTPException(status_code=resp.status_code, detail=resp.text)
 
     call = resp.json()

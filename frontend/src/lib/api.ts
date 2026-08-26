@@ -77,6 +77,21 @@ export interface Call {
   answered_by?: string;
 }
 
+export interface CreateCallPayload {
+  agent_id: string;
+  callee_name: string;
+  mobile_number: string;
+  custom_data?: Record<string, string>;
+  from_phone_number?: string;
+  request_id?: string;
+  timezone?: string;
+  guardrails?: {
+    allowed_days: string[];
+    earliest_call_time: string;
+    last_call_time: string;
+  };
+}
+
 export const callsApi = {
   list: (params?: { status?: string; agent_id?: string; page?: number; page_size?: number }) => {
     const qs = new URLSearchParams(
@@ -87,14 +102,7 @@ export const callsApi = {
     return fetchAPI<PaginatedResponse<Call>>(`/api/calls${qs ? `?${qs}` : ""}`);
   },
   get: (id: string) => fetchAPI<Call>(`/api/calls/${id}`),
-  create: (data: {
-    agent_id: string;
-    callee_name: string;
-    mobile_number: string;
-    custom_data?: Record<string, string>;
-    from_phone_number?: string;
-    request_id?: string;
-  }) => fetchAPI<Call>("/api/calls", { method: "POST", body: JSON.stringify(data) }),
+  create: (data: CreateCallPayload) => fetchAPI<Call>("/api/calls", { method: "POST", body: JSON.stringify(data) }),
   createBulk: (data: {
     agent_id: string;
     data: { callee_name: string; mobile_number: string; custom_data?: Record<string, string> }[];

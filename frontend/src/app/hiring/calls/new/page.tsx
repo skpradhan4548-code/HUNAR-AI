@@ -27,6 +27,10 @@ export default function NewCallPage() {
   });
 
   const [dynamicVars, setDynamicVars] = useState<Record<string, string>>({});
+  const [instantMode, setInstantMode] = useState(true);
+  const [timezone, setTimezone] = useState("Asia/Kolkata");
+  const [earliestTime, setEarliestTime] = useState("00:00");
+  const [latestTime, setLatestTime] = useState("23:59");
 
   useEffect(() => {
     Promise.all([
@@ -86,12 +90,20 @@ export default function NewCallPage() {
         }
       }
 
+      const guardrailsPayload = instantMode ? {
+        allowed_days: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
+        earliest_call_time: earliestTime,
+        last_call_time: latestTime,
+      } : undefined;
+
       const call = await callsApi.create({
         agent_id: form.agent_id,
         callee_name: form.callee_name,
         mobile_number: form.mobile_number,
         custom_data: customData,
         from_phone_number: form.from_phone_number || undefined,
+        timezone: timezone || undefined,
+        guardrails: guardrailsPayload,
         request_id: `hire-${Date.now()}`,
       });
       setSuccess(call.id);
@@ -234,6 +246,73 @@ export default function NewCallPage() {
             </div>
           </div>
         )}
+
+        {/* Calling Schedule & 24/7 Mode */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-bold text-slate-900 text-sm">24/7 Instant Calling Mode</h3>
+              <p className="text-xs text-slate-400">Allow outbound calls to be placed at any time (including night hours)</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={instantMode}
+                onChange={(e) => setInstantMode(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
+            </label>
+          </div>
+
+          <div className="pt-3 border-t border-slate-100 grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Timezone</label>
+              <select
+                value={timezone}
+                onChange={(e) => setTimezone(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 text-xs bg-white"
+              >
+                <option value="Asia/Kolkata">Asia/Kolkata (IST - India)</option>
+                <option value="America/New_York">America/New_York (EST - US)</option>
+                <option value="America/Los_Angeles">America/Los_Angeles (PST - US)</option>
+                <option value="Europe/London">Europe/London (GMT/BST - UK)</option>
+                <option value="Asia/Riyadh">Asia/Riyadh (AST - Saudi Arabia)</option>
+              </select>
+            </div>
+
+            {instantMode ? (
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Calling Window</label>
+                <div className="px-3 py-2 rounded-xl bg-violet-50 text-violet-700 font-mono text-xs font-medium border border-violet-100 flex items-center justify-between">
+                  <span>24 Hours Active</span>
+                  <span>00:00 - 23:59</span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Earliest</label>
+                  <input
+                    type="time"
+                    value={earliestTime}
+                    onChange={(e) => setEarliestTime(e.target.value)}
+                    className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Latest</label>
+                  <input
+                    type="time"
+                    value={latestTime}
+                    onChange={(e) => setLatestTime(e.target.value)}
+                    className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
 
         <button
           type="submit" disabled={loading || dataLoading || agents.length === 0}
