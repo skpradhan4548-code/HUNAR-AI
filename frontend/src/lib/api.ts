@@ -3,10 +3,20 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      headers: { "Content-Type": "application/json" },
+      ...options,
+    });
+  } catch {
+    throw new Error(
+      `Failed to connect to backend at ${API_URL}. ` +
+      (API_URL.includes("localhost")
+        ? "Make sure the backend server is running locally on port 8000."
+        : "Check that NEXT_PUBLIC_API_URL is set correctly in your Vercel environment variables.")
+    );
+  }
   if (!res.ok) {
     const error = await res.text();
     throw new Error(error || `HTTP ${res.status}`);

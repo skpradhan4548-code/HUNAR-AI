@@ -51,7 +51,7 @@ export default function HiringDashboard() {
       {error && (
         <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-2">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          {error} — Make sure the backend is running at localhost:8000
+          {error} — The backend is not reachable. If deployed, set <code>NEXT_PUBLIC_API_URL</code> in Vercel environment variables to your backend URL.
         </div>
       )}
 
