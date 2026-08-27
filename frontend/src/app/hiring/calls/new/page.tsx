@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Phone, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { agentsApi, callsApi, numbersApi, type Agent, type PhoneNumber } from "@/lib/api";
+import { parseApiError } from "@/lib/utils";
 
 export default function NewCallPage() {
   const router = useRouter();
@@ -29,8 +30,8 @@ export default function NewCallPage() {
   const [dynamicVars, setDynamicVars] = useState<Record<string, string>>({});
   const [instantMode, setInstantMode] = useState(true);
   const [timezone, setTimezone] = useState("Asia/Kolkata");
-  const [earliestTime, setEarliestTime] = useState("00:00");
-  const [latestTime, setLatestTime] = useState("23:59");
+  const [earliestTime, setEarliestTime] = useState("08:00");
+  const [latestTime, setLatestTime] = useState("21:00");
 
   useEffect(() => {
     Promise.all([
@@ -109,7 +110,7 @@ export default function NewCallPage() {
       setSuccess(call.id);
       setTimeout(() => router.push("/hiring/calls"), 2500);
     } catch (e: unknown) {
-      setError((e as Error).message);
+      setError(parseApiError(e));
     } finally {
       setLoading(false);
     }
@@ -285,8 +286,8 @@ export default function NewCallPage() {
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">Calling Window</label>
                 <div className="px-3 py-2 rounded-xl bg-violet-50 text-violet-700 font-mono text-xs font-medium border border-violet-100 flex items-center justify-between">
-                  <span>24 Hours Active</span>
-                  <span>00:00 - 23:59</span>
+                  <span>Extended Hours</span>
+                  <span>08:00 - 21:00</span>
                 </div>
               </div>
             ) : (

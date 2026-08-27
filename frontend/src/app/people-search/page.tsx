@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Search, Loader2, Briefcase, MapPin, GraduationCap, Link2, Phone, Star, AlertCircle, CheckCircle, Send, X } from "lucide-react";
 import { searchApi, agentsApi, outreachApi, type Candidate, type Agent } from "@/lib/api";
+import { parseApiError } from "@/lib/utils";
 
 export default function PeopleSearchPage() {
   const [jd, setJd] = useState("");
@@ -31,7 +32,7 @@ export default function PeopleSearchPage() {
       setResults(res.results);
       setSource(res.source);
     } catch (e: unknown) {
-      setError((e as Error).message);
+      setError(parseApiError(e));
     } finally {
       setSearching(false);
     }
@@ -61,7 +62,7 @@ export default function PeopleSearchPage() {
       });
       setOutreachSuccess(call.id);
     } catch (e: unknown) {
-      setError((e as Error).message);
+      setError(parseApiError(e));
     } finally {
       setInitiating(false);
     }

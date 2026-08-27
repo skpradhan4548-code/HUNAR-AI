@@ -47,6 +47,25 @@ export const LANGUAGE_LABELS: Record<string, string> = {
   SPANISH: "Spanish",
 };
 
+/** Parse Hunar API JSON error strings into human-readable messages. */
+export function parseApiError(e: unknown): string {
+  const raw = (e as Error).message || String(e);
+  try {
+    const parsed = JSON.parse(raw);
+    const detail = parsed?.detail;
+    if (typeof detail === "string") return detail;
+    if (detail?.message) return detail.message;
+    if (parsed?.message) return parsed.message;
+    const details = detail?.details || parsed?.details;
+    if (Array.isArray(details) && details.length > 0) {
+      return details.map((d: { field_name?: string; error_msg?: string }) => `${d.field_name}: ${d.error_msg}`).join(", ");
+    }
+  } catch {
+    // not JSON — return as-is
+  }
+  return raw;
+}
+
 export const PERSONA_COLORS: Record<string, string> = {
   NEHA: "from-pink-500 to-rose-500",
   ROY: "from-blue-500 to-indigo-500",

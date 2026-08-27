@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, CheckCircle } from "lucide-react";
 import Link from "next/link";
 import { agentsApi } from "@/lib/api";
+import { parseApiError } from "@/lib/utils";
 
 const LANGUAGES = ["ENGLISH", "HINDI", "TAMIL", "TELUGU", "KANNADA", "MARATHI", "MALAYALAM", "GUJARATI", "BENGALI", "TURKISH", "ARABIC", "SPANISH"];
 const PERSONAS = ["NEHA", "ROY", "ZOE", "SAM", "MIRA", "EESHA"];
@@ -71,7 +72,7 @@ Keep each question concise. Listen actively. After all questions, thank them war
       setSuccess(true);
       setTimeout(() => router.push("/hiring/agents"), 1500);
     } catch (e: unknown) {
-      setError((e as Error).message);
+      setError(parseApiError(e));
     } finally {
       setLoading(false);
     }
