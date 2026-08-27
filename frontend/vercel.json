@@ -2,11 +2,5 @@
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "framework": "nextjs",
-  "installCommand": "npm install",
-  "env": {
-    "NEXT_PUBLIC_API_URL": {
-      "description": "URL of the FastAPI backend",
-      "value": "https://hunar-ai-backend.onrender.com"
-    }
-  }
+  "installCommand": "npm install"
 }
